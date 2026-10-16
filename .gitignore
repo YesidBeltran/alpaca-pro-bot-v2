@@ -1,7 +1,0 @@
-.env
-__pycache__/
-*.pyc
-venv/
-logs/
-journal.json
-backtest_results/
