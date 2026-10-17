@@ -1,0 +1,5 @@
+alpaca-py==0.32.0
+pandas
+numpy
+python-dotenv
+requests
