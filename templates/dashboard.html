@@ -187,7 +187,7 @@ async function fetchStatus(){
     // positions
     const tbody=document.getElementById('posBody');
     if(!data.positions||data.positions.length===0){
-      tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:20px">No hay posiciones abiertas - Esperando setup A+ (Conf >=70%)</td></tr>';
+      tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:20px">No hay posiciones abiertas - Esperando setup A+ (68%) o A (60%) - V10 FINAL</td></tr>';
     }else{
       tbody.innerHTML=data.positions.map(p=>`<tr><td>${p.symbol}</td><td>${p.qty}</td><td>$${p.entry}</td><td class="pnl ${p.pl>=0?'pos':'neg'}">${p.pl>=0?'+':''}$${p.pl} (${p.pl_pct}%)</td><td>${p.rsi||'-'}</td><td>${p.nom||'-'}</td><td><span class="tag bgg">${p.classif||'A+'}</span></td><td><span class="tag bgg">-</span></td></tr>`).join('');
     }
