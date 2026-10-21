@@ -165,6 +165,8 @@ class TradingBrain:
                 return
                 
             side = OrderSide.BUY if decision['signal'] == 'long' else OrderSide.SELL
+            
+            # Línea limpia sin caracteres especiales conflictivos
             log_msg(f">>> ORDEN VALIDA {symbol} {decision['signal'].upper()} | {decision['strategy']} | Conf: {decision['confidence']}% | Price: ${last_price:.2f} | SL: ${sl:.2f} \vert{} TP:${tp:.2f} | Qty: {qty}")
             
             order = MarketOrderRequest(
