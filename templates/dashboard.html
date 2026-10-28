@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AURA SYNAPSE V9.5 — VECTOR FLOW TERMINAL</title>
+<title>AURA SYNAPSE V11.5 — VECTOR FLOW TERMINAL</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root{--bg:#070c18;--panel:#0f172a;--panel2:#121d36;--border:#1e2f55;--green:#00ff88;--green2:#00e67a;--red:#ff3b3b;--yellow:#ffcc33;--cyan:#00e5ff;--text:#cbd5e1;--dim:#64748b}
 *{margin:0;padding:0;box-sizing:border-box}body{background:radial-gradient(1200px 600px at 20% 0%, #102040 0%, var(--bg) 60%),var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;overflow-x:hidden}
-.header{height:56px;background:linear-gradient(90deg,#0a142c,#0f1d3a);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:100}
+.header{min-height:64px;background:linear-gradient(90deg,#0a142c,#0f1d3a);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:8px 16px;position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap}
 .logo{display:flex;align-items:center;gap:12px}.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,#fff,#cbd5e1);border-radius:10px;display:grid;place-items:center;color:#0a142c;font-weight:800}
-.title{font-family:'Inter',sans-serif;font-weight:800;letter-spacing:-0.02em}.title span{color:var(--dim);font-weight:400;font-size:11px;display:block;letter-spacing:0.12em}
-.badges{display:flex;gap:8px}.badge{padding:6px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--border)}.badge.green{background:rgba(0,255,136,0.12);border-color:rgba(0,255,136,0.3);color:var(--green)}.badge.cyan{background:rgba(0,229,255,0.12);color:var(--cyan)}
+.title{font-family:'Inter',sans-serif;font-weight:800;letter-spacing:-0.02em;font-size:14px;line-height:1.2}.title span{color:var(--dim);font-weight:400;font-size:10px;display:block;letter-spacing:0.08em;line-height:1.4;margin-top:4px;white-space:normal}
+.badges{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.badge{padding:6px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--border);white-space:nowrap}.badge.green{background:rgba(0,255,136,0.12);border-color:rgba(0,255,136,0.3);color:var(--green)}.badge.cyan{background:rgba(0,229,255,0.12);color:var(--cyan)}
 .btn-primary{background:linear-gradient(90deg,#00ff88,#00e5ff);color:#001a10;border:none;padding:10px 18px;border-radius:10px;font-weight:800;cursor:pointer;box-shadow:0 0 20px rgba(0,255,136,0.3)}
 .grid{display:grid;grid-template-columns:200px 1fr 300px;gap:10px;padding:10px}
 .grid2{display:grid;grid-template-columns:200px 1fr 300px;gap:10px;padding:0 10px 10px}
@@ -48,7 +48,7 @@
   <div class="logo">
     <div class="logo-icon">A</div>
     <div>
-      <div class="title">AURA SYNAPSE V9.5 — VECTOR FLOW TERMINAL</div>
+      <div class="title">AURA SYNAPSE V11.5 — VECTOR FLOW TERMINAL</div>
       <span>STOCK MARKET TRADING • RE-CLASSIFIER 5MIN • SYNC REAL ALPACA • DECISION SOCIOS SYNA & VESIS • APROBADO</span>
     </div>
   </div>
