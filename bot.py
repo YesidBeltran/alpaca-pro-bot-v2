@@ -41,7 +41,7 @@ BOT_STATE = {
     "last_scan": "--", "positions": [], "watchlist": [], "logs": deque(maxlen=100),
     "news": [], "orderbook": [], "vol": "38.2M", "atr": "2.4", "breadth": 68,
     "netFlow": "2.10B", "retailFlow": "1.2B", "instFlow": "0.7B", "latency": 52,
-    "dayDelta": 3.82, "sharpe": 1.84, "ytd": "+42.4%",
+    "dayDelta": 3.82, "sharpe": 0.0, "ytd": "0.0%", "return_ytd": 0.0, "volatility": 0.0, "max_drawdown": 0.0, "momentum_rsi": 50, "confidence_avg": 0.0, "performance": {}
 }
 
 def log_msg(msg):
@@ -194,7 +194,7 @@ class TradingBrain:
         try:
             log_msg(f"Intentando CIERRE {symbol} | {reason}")
             try:
-                open_orders = self.trading_client.get_all_orders()
+                open_orders = self.trading_client.list_orders(status='open')
                 for o in open_orders:
                     if o.symbol == symbol and o.status not in ['filled', 'canceled', 'expired']:
                         try:
@@ -348,6 +348,61 @@ class TradingBrain:
             BOT_STATE["last_scan"]=get_ny_time_str()
             BOT_STATE["orderbook"]=[{"bid":round(178.9+random.uniform(-1,1),2),"size":random.randint(80,350),"ask":round(178.95+random.uniform(-1,1),2),"askSize":random.randint(80,350)} for _ in range(4)]
             BOT_STATE["market_open"]=is_market_open_now()
+            # V11.7: Calculo REAL de performance metrics desde equity
+            try:
+                equity_now = BOT_STATE["equity"]
+                initial = 100000.0
+                # Return YTD real
+                return_ytd = (equity_now / initial - 1) * 100
+                BOT_STATE["return_ytd"] = round(return_ytd, 2)
+                BOT_STATE["ytd"] = f"{return_ytd:+.2f}%"
+                # Today PnL
+                day_start = BOT_STATE.get("day_start_equity", initial)
+                today_pnl = equity_now - day_start
+                today_pnl_pct = (today_pnl / day_start * 100) if day_start else 0
+                BOT_STATE["today_pnl"] = round(today_pnl, 2)
+                BOT_STATE["today_pnl_pct"] = round(today_pnl_pct, 2)
+                # Max Drawdown y Sharpe simplificados basados en historial de equity
+                # Guardamos historial simple en BOT_STATE
+                if "equity_history" not in BOT_STATE:
+                    BOT_STATE["equity_history"] = deque(maxlen=100)
+                BOT_STATE["equity_history"].append(equity_now)
+                eq_hist = list(BOT_STATE["equity_history"])
+                if len(eq_hist) > 1:
+                    peak = max(eq_hist)
+                    trough = min(eq_hist)
+                    max_dd = (trough - peak) / peak * 100 if peak else 0
+                    BOT_STATE["max_drawdown"] = round(max_dd, 2)
+                    # Volatility: std de retornos
+                    returns = [(eq_hist[i]-eq_hist[i-1])/eq_hist[i-1] for i in range(1,len(eq_hist)) if eq_hist[i-1]!=0]
+                    if returns:
+                        import math
+                        mean_ret = sum(returns)/len(returns)
+                        var = sum((r-mean_ret)**2 for r in returns)/len(returns) if len(returns)>1 else 0
+                        vol = math.sqrt(var) * math.sqrt(252) * 100
+                        BOT_STATE["volatility"] = round(vol, 2)
+                        # Sharpe simplificado
+                        sharpe = (mean_ret*252) / (math.sqrt(var)*math.sqrt(252)) if var>0 else 0
+                        BOT_STATE["sharpe"] = round(sharpe, 2)
+                    # Momentum RSI promedio del watchlist
+                    if watchlist:
+                        avg_rsi = sum(w.get("rsi",50) for w in watchlist)/len(watchlist)
+                        BOT_STATE["momentum_rsi"] = round(avg_rsi, 0)
+                    # Confidence promedio
+                    confs = [BOT_STATE.get(f"last_{sym}_conf",0) for sym in Config.SYMBOLS]
+                    confs = [c for c in confs if c>0]
+                    if confs:
+                        BOT_STATE["confidence_avg"] = round(sum(confs)/len(confs), 1)
+                BOT_STATE["performance"] = {
+                    "return_ytd": BOT_STATE["return_ytd"],
+                    "sharpe": BOT_STATE["sharpe"],
+                    "volatility": BOT_STATE["volatility"],
+                    "max_drawdown": BOT_STATE["max_drawdown"],
+                    "momentum_rsi": BOT_STATE["momentum_rsi"],
+                    "confidence_avg": BOT_STATE["confidence_avg"]
+                }
+            except Exception as e:
+                log_msg(f"Performance calc error: {e}")
         except Exception as e:
             log_msg(f"Update state error: {e}")
 
@@ -441,7 +496,18 @@ def home():
 
 @app.route("/api/status")
 def api_status():
-    state=dict(BOT_STATE); state["logs"]=list(state["logs"])[-50:]; return jsonify(state)
+    state=dict(BOT_STATE); state["logs"]=list(state["logs"])[-50:]
+    # V11.7: Ensure performance dict is sent
+    if "performance" not in state:
+        state["performance"] = {
+            "return_ytd": state.get("return_ytd", 0),
+            "sharpe": state.get("sharpe", 0),
+            "volatility": state.get("volatility", 0),
+            "max_drawdown": state.get("max_drawdown", 0),
+            "momentum_rsi": state.get("momentum_rsi", 50),
+            "confidence_avg": state.get("confidence_avg", 0)
+        }
+    return jsonify(state)
 
 @app.route("/api/chart")
 def api_chart():
@@ -476,7 +542,7 @@ def close_all_api():
         closed = []
         for p in positions:
             try:
-                for o in client.get_all_orders():
+                for o in client.list_orders(status='open'):
                     if o.symbol == p.symbol and o.status not in ['filled','canceled','expired']:
                         try:
                             client.cancel_order_by_id(o.id)
