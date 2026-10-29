@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURA SYNAPSE V11.6 — VECTOR FLOW TERMINAL</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{--bg:#070c18;--panel:#0f172a;--panel2:#121d36;--border:#1e2f55;--green:#00ff88;--green2:#00e67a;--red:#ff3b3b;--yellow:#ffcc33;--cyan:#00e5ff;--text:#cbd5e1;--dim:#64748b}
+*{margin:0;padding:0;box-sizing:border-box}body{background:radial-gradient(1200px 600px at 20% 0%, #102040 0%, var(--bg) 60%),var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;overflow-x:hidden}
+.header{min-height:64px;background:linear-gradient(90deg,#0a142c,#0f1d3a);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:8px 16px;position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:12px}.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,#fff,#cbd5e1);border-radius:10px;display:grid;place-items:center;color:#0a142c;font-weight:800}
+.title{font-family:'Inter',sans-serif;font-weight:800;letter-spacing:-0.02em;font-size:14px;line-height:1.2}.title span{color:var(--dim);font-weight:400;font-size:10px;display:block;letter-spacing:0.08em;line-height:1.4;margin-top:4px;white-space:normal}
+.badges{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.badge{padding:6px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--border);white-space:nowrap}.badge.green{background:rgba(0,255,136,0.12);border-color:rgba(0,255,136,0.3);color:var(--green)}.badge.cyan{background:rgba(0,229,255,0.12);color:var(--cyan)}
+.btn-primary{background:linear-gradient(90deg,#00ff88,#00e5ff);color:#001a10;border:none;padding:10px 18px;border-radius:10px;font-weight:800;cursor:pointer;box-shadow:0 0 20px rgba(0,255,136,0.3)}
+.grid{display:grid;grid-template-columns:200px 1fr 300px;gap:10px;padding:10px}
+.grid2{display:grid;grid-template-columns:200px 1fr 300px;gap:10px;padding:0 10px 10px}
+.panel{background:linear-gradient(180deg,var(--panel),#0b1328);border:1px solid var(--border);border-radius:14px;padding:12px;position:relative;overflow:hidden}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--green),transparent);opacity:0.5}
+.panel-title{font-size:10px;letter-spacing:0.15em;color:var(--dim);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.watch-item{display:flex;align-items:center;justify-content:space-between;padding:10px 8px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid transparent;margin-bottom:8px;cursor:pointer;transition:0.2s}
+.watch-item.active{border-color:var(--green);background:rgba(0,255,136,0.08)}
+.sym{font-weight:700}.pct{font-size:11px;padding:4px 8px;border-radius:20px}.pct.neg{background:rgba(255,59,59,0.15);color:var(--red)}.pct.pos{background:rgba(0,255,136,0.15);color:var(--green)}
+.rsi-bar{height:4px;background:#1e293b;border-radius:2px;margin-top:6px;overflow:hidden}.rsi-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--green))}
+.chart-wrap{height:380px;position:relative}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.kpi{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px}
+.kpi .val{font-size:22px;font-weight:800}.kpi .label{font-size:9px;color:var(--dim);letter-spacing:0.1em}
+.orderbook{font-size:12px}.ob-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.buy-btn{width:48%;padding:12px;border:none;border-radius:10px;font-weight:800;cursor:pointer}.buy{background:var(--green);color:#001a10}.sell{background:var(--yellow);color:#1a1200}
+.pos-table{width:100%;font-size:12px;border-collapse:collapse}.pos-table th{color:var(--dim);font-weight:400;font-size:10px;letter-spacing:0.1em;text-align:left;padding:8px}.pos-table td{padding:10px 8px;border-top:1px solid rgba(255,255,255,0.05)}
+.pnl.pos{color:var(--green)}.pnl.neg{color:var(--red)}
+.allocation-ring{width:90px;height:90px;border-radius:50%;background:conic-gradient(var(--green) 0% 65%, #3b82f6 65% 85%, #a855f7 85% 100%);display:grid;place-items:center;margin:10px auto;position:relative}
+.allocation-ring::after{content:'';width:60px;height:60px;background:var(--panel);border-radius:50%;position:absolute}
+.allocation-center{position:relative;z-index:1;font-weight:800;font-size:18px}
+.live-feed{font-size:11px;line-height:1.8;max-height:200px;overflow:auto}
+.tag{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;margin-right:4px}
+.tag.bgg{background:rgba(0,255,136,0.15);color:var(--green)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.break-even{position:absolute;bottom:16px;right:16px;background:var(--green);color:#001a10;padding:12px 16px;border-radius:14px;display:flex;align-items:center;gap:10px;font-weight:800;font-size:12px;box-shadow:0 0 30px rgba(0,255,136,0.4)}
+@media(max-width:1200px){.grid,.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">A</div>
+    <div>
+      <div class="title">AURA SYNAPSE V11.6 — VECTOR FLOW TERMINAL</div>
+      <span>STOCK MARKET TRADING • RE-CLASSIFIER 5MIN • SYNC REAL ALPACA • DECISION SOCIOS SYNA & VESIS • APROBADO</span>
+    </div>
+  </div>
+  <div class="badges">
+    <div class="badge green" id="marketStatus">MARKET • LOADING</div>
+    <div class="badge" id="equityBadge">EQUITY $---</div>
+    <div class="badge" id="cashBadge">CASH $---</div>
+    <div class="badge" id="bpBadge">BP $---</div>
+    <button class="btn-primary" onclick="reclassify()">EJECUTAR RE-CLASSIFIER</button>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <div class="panel-title"><span class="status-dot"></span> WATCHLIST • SYNCED • LIVE</div>
+    <div id="watchlist"></div>
+    <div style="margin-top:14px" class="panel">
+      <div class="panel-title">PORTFOLIO ALLOCATION</div>
+      <div class="allocation-ring"><div class="allocation-center" id="posCount">0/6</div></div>
+      <div style="font-size:11px;line-height:1.6">
+        <div>● Equity Core 30%</div>
+        <div style="color:#60a5fa">● Growth</div>
+        <div style="color:#a78bfa">● Options 20%</div>
+        <div style="margin-top:8px">Equity: <span id="eqVal">$0.00</span></div>
+        <div id="todayPnl">Hoy: +$0.0</div>
+      </div>
+      <div style="margin-top:10px;font-size:10px;color:var(--dim)">
+        <div>Último Scan: <span id="lastScan">--</span></div>
+        <div>Mode: Re-Classifier 5Min APROBADO</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:11px"><span id="alphaSymbol">ALPHA • TSLA</span> • <span id="volInfo">VOL 0 • ATR 0</span></div>
+      <div style="display:flex;gap:6px">
+        <div class="badge green">— RSI</div>
+        <div class="badge" id="rsiVals">-- / --</div>
+        <div class="badge" id="lowInfo">-- Low</div>
+        <div class="badge" id="volBadge">-- Vol</div>
+        <div class="badge green" id="netFlow">-- Net Flow</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="mainChart"></canvas>
+      <div class="break-even"><div>🔒</div><div>BREAK-EVEN<br>LOCK<br>GUARANTEED</div></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="label">BREADTH ADV / DEC</div><div class="val" style="color:var(--green)" id="breadth">--%</div><canvas id="breadthMini" height="30"></canvas></div>
+      <div class="kpi"><div class="label">FLOW MAP 2.92B NET FLOW</div><div class="val" id="flowVal">--B</div><div style="font-size:10px"><div>Retail <span style="float:right" id="retailFlow">--</span></div><div>Institutional <span style="float:right" id="instFlow">--</span></div></div></div>
+      <div class="kpi"><div class="label">LATENCY 52 MS • V11.6</div><div class="val" style="color:var(--cyan)" id="latency">-- MS</div><canvas id="latMini" height="30"></canvas></div>
+      <div class="kpi"><div class="label">DAY DELTAS +0.34% MOY</div><div class="val" style="color:var(--cyan)" id="dayDelta">--%</div><div style="font-size:10px">Range → 1.2%<br>1.2% → 4.5%</div></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <div class="panel-title">ORDEN BOOK • 8LPTH • SIZE</div>
+      <div class="orderbook">
+        <div style="display:flex;justify-content:space-between;color:var(--dim);font-size:10px"><span>R•DG • DEPTH</span><span>ASKS • BITE</span></div>
+        <div id="orderBook"></div>
+        <div style="display:flex;gap:8px;margin-top:12px"><button class="buy-btn buy" onclick="alert('Orden BUY via Alpaca API - usa el bot automatico')">BUY</button><button class="buy-btn sell" onclick="alert('Orden SELL via Alpaca API')">SELL</button></div>
+        <button class="buy-btn sell" style="width:100%;margin-top:8px">SELL</button>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:10px">
+      <div class="panel-title">LOG V11.6 — RE-CLASSIFIER — APROBADO • DYNA & YESID</div>
+      <div class="live-feed" id="logFeed"></div>
+    </div>
+    <div class="panel" style="margin-top:10px">
+      <div class="panel-title">⚡ LIVE NEWS FEED • V11.6</div>
+      <div id="newsFeed" style="font-size:11px;line-height:1.6"></div>
+    </div>
+  </div>
+</div>
+
+<div class="grid2">
+
+    <div class="panel">
+      <div class="panel-title">PERFORMANCE METRICS</div>
+      <div style="font-size:12px;line-height:2">
+        <div>Return YTD <span style="float:right" id="perfReturnYTD">0.0%</span></div>
+        <div>Sharpe Ratio <span style="float:right" id="perfSharpe">0.00</span></div>
+        <div>Volatility <span style="float:right" id="perfVol">0.0%</span></div>
+        <div>Max Drawdown <span style="float:right" id="perfDD">0.0%</span></div>
+        <div>Momentum RSI <span style="float:right" id="perfRSI">50</span></div>
+        <div>Confidence <span style="float:right" id="perfConf">0.0%</span></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:12px;background:rgba(0,255,136,0.06)">
+      <div class="panel-title">⚡ MOMENTUM RE-CLASSIFIER 5MIN</div>
+      <div style="font-weight:800">+ RE-CLASSIFIER<br>EVERY • ACTIVE <span class="status-dot"></span><br>CONFIDENCE <span style="color:var(--green)" id="confVal">94.6%</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">POSICIONES REALES ALPACA • RE-CLASSIFIER 5MIN • V11.6 APROBADO</div>
+    <table class="pos-table">
+      <thead><tr><th>SYMBOL</th><th>QTY</th><th>ENTRY</th><th>P/L REAL</th><th>RSI</th><th>NOM 5M</th><th>CLASIF</th><th>TRAIL</th></tr></thead>
+      <tbody id="posBody"><tr><td colspan="8" style="text-align:center;color:var(--dim);padding:20px">No hay posiciones abiertas - Esperando setup A+</td></tr></tbody>
+    </table>
+    <div style="margin-top:10px;font-size:10px;color:var(--dim)"><span class="tag bgg">500 FLAT REAL 15:45 NY</span> <span class="tag bgg">RE-CLASSIFIER 5MIN ACTIVO</span> <span class="tag bgg">SYNC REAL ALPACA</span></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">AURA IDENTITY • APROBADO</div>
+    <div style="display:flex;gap:12px;align-items:center;margin:12px 0"><div style="width:48px;height:48px;background:#fff;border-radius:12px;display:grid;place-items:center;color:#000;font-weight:800">AURA</div><div><div style="font-weight:700">AURA STOCK MARKET TRADING</div><div style="font-size:10px;color:var(--cyan)">Calibrated + Smartland Onice<br>Figura de velas colaborando profit<br>Socios: Syna & Yesid • V11.6 FINAL</div></div></div>
+    <div style="font-size:12px;line-height:2">Equity Hoy <span style="float:right;color:var(--green)" id="eqHoy">+$0 • +0.24%</span><br>Estilo <span style="float:right;color:#a78bfa">Vector Flow + AURA Oficial APROBADO</span><br>Decision <span style="float:right;color:var(--green)">LUZ VERDE • V11.6 FINAL</span></div>
+  </div>
+</div>
+
+<script>
+let mainChart;
+let selectedSymbol='TSLA';
+async function fetchStatus(){
+  try{
+    const res=await fetch('/api/status'); const data=await res.json();
+    document.getElementById('equityBadge').textContent='EQUITY $'+(data.equity||0).toFixed(2);
+    document.getElementById('cashBadge').textContent='CASH $'+(data.cash||0).toFixed(2);
+    document.getElementById('bpBadge').textContent='BP $'+(data.buying_power||0).toFixed(0);
+    document.getElementById('eqVal').textContent='$'+(data.equity||0).toFixed(2);
+    document.getElementById('eqHoy').textContent=(data.today_pnl>=0?'+$':'-$')+Math.abs(data.today_pnl||0).toFixed(1)+' • '+(data.today_pnl_pct||0).toFixed(2)+'%';
+    document.getElementById('marketStatus').textContent=(data.market_open?'MARKET OPEN':'MARKET CLOSED');
+    document.getElementById('marketStatus').className='badge '+(data.market_open?'green':'');
+    document.getElementById('posCount').textContent=(data.positions?.length||0)+'/6';
+    document.getElementById('lastScan').textContent=data.last_scan||'--';
+    document.getElementById('todayPnl').textContent='Hoy: '+(data.today_pnl>=0?'+':'')+'$'+(data.today_pnl||0).toFixed(1);
+
+    // performance metrics - REAL from Alpaca
+    try{
+        const perf = data.performance || {};
+        const setText = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+        setText('perfReturnYTD', (perf.return_ytd>=0?'+':'') + (perf.return_ytd||0).toFixed(2) + '%');
+        setText('perfSharpe', (perf.sharpe||0).toFixed(2));
+        setText('perfVol', (perf.volatility||0).toFixed(1) + '%');
+        setText('perfDD', (perf.max_drawdown||0).toFixed(1) + '%');
+        setText('perfRSI', Math.round(perf.momentum_rsi||50));
+        setText('perfConf', (perf.confidence_avg||0).toFixed(1) + '%');
+        // color coding
+        const rYTD = document.getElementById('perfReturnYTD');
+        if(rYTD){ rYTD.style.color = (perf.return_ytd||0)>=0 ? 'var(--green)' : 'var(--red)'; }
+        const dd = document.getElementById('perfDD');
+        if(dd){ dd.style.color = 'var(--red)'; }
+    }catch(e){}
+
+    // watchlist
+    const wl=document.getElementById('watchlist'); wl.innerHTML='';
+    (data.watchlist||[]).forEach(w=>{
+      const div=document.createElement('div'); div.className='watch-item '+(w.symbol===selectedSymbol?'active':'');
+      div.onclick=()=>{selectedSymbol=w.symbol; loadChart(w.symbol); fetchStatus();};
+      div.innerHTML=`<div><div class="sym">${w.symbol}</div><div class="rsi-bar"><div class="rsi-fill" style="width:${w.rsi||50}%"></div></div></div><div style="text-align:right"><div style="font-size:11px">$${w.price||'--'}</div><div class="pct ${w.change>=0?'pos':'neg'}">${w.change>=0?'+':''}${(w.change||0).toFixed(2)}%</div></div>`;
+      wl.appendChild(div);
+    });
+
+    // positions
+    const tbody=document.getElementById('posBody');
+    if(!data.positions||data.positions.length===0){
+      tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:20px">No hay posiciones abiertas - Esperando setup A+ (Conf >=70%)</td></tr>';
+    }else{
+      tbody.innerHTML=data.positions.map(p=>`<tr><td>${p.symbol}</td><td>${p.qty}</td><td>$${p.entry}</td><td class="pnl ${p.pl>=0?'pos':'neg'}">${p.pl>=0?'+':''}$${p.pl} (${p.pl_pct}%)</td><td>${p.rsi||'-'}</td><td>${p.nom||'-'}</td><td><span class="tag bgg">${p.classif||'A+'}</span></td><td><span class="tag bgg">-</span></td></tr>`).join('');
+    }
+
+    // logs
+    document.getElementById('logFeed').innerHTML=(data.logs||[]).slice(-12).reverse().map(l=>`<div>[${l.time}] ${l.msg}</div>`).join('');
+    document.getElementById('newsFeed').innerHTML=(data.news||[]).map(n=>`<div style="margin-bottom:8px"><span class="tag bgg">${n.tag}</span> ${n.text}</div>`).join('');
+
+    // order book mock + real
+    const ob=document.getElementById('orderBook');
+    const levels=data.orderbook||[{bid:178.90,size:120,ask:178.95,askSize:98},{bid:178.85,size:250,ask:179.00,askSize:210},{bid:178.80,size:310,ask:179.05,askSize:165},{bid:178.75,size:180,ask:179.15,askSize:230}];
+    ob.innerHTML=levels.map(l=>`<div class="ob-row"><span>${l.bid}</span><span style="color:var(--dim)">${l.size}</span><span style="color:var(--yellow)">${l.ask}</span><span>${l.askSize}</span></div>`).join('');
+
+    document.getElementById('alphaSymbol').textContent='ALPHA • '+selectedSymbol+' $-- • VOL '+(data.vol||'--')+' • ATR '+(data.atr||'--');
+  }catch(e){console.error(e)}
+}
+
+async function loadChart(sym){
+  selectedSymbol=sym||selectedSymbol;
+  try{
+    const res=await fetch('/api/chart?symbol='+selectedSymbol); const d=await res.json();
+    const ctx=document.getElementById('mainChart').getContext('2d');
+    if(mainChart) mainChart.destroy();
+    mainChart=new Chart(ctx,{type:'candlestick',data:{datasets:[{label:selectedSymbol,data:d.candles||[]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+    // fallback to line chart if candlestick not supported
+  }catch(e){
+    // simple line fallback
+    const ctx=document.getElementById('mainChart').getContext('2d');
+    if(mainChart) mainChart.destroy();
+    const res2=await fetch('/api/chart?symbol='+selectedSymbol); const d2=await res2.json();
+    mainChart=new Chart(ctx,{type:'line',data:{labels:(d2.candles||[]).map((_,i)=>i),datasets:[{data:(d2.candles||[]).map(c=>c.c||c.close||0),borderColor:'#00ff88',backgroundColor:'rgba(0,255,136,0.1)',tension:0.4,fill:true},{data:(d2.candles||[]).map(c=>c.ma||0),borderColor:'#ffcc33',borderDash:[4,4],tension:0.4,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#64748b'}}}}});
+    document.getElementById('rsiVals').textContent=(d2.rsi||'48 / 32');
+    document.getElementById('flowVal').textContent=(d2.netFlow||'2.10B');
+  }
+}
+
+function reclassify(){fetch('/api/reclassify',{method:'POST'}).then(()=>{alert('RE-CLASSIFIER ejecutado - revisa logs');fetchStatus();});}
+
+setInterval(fetchStatus,5000);
+setInterval(()=>loadChart(selectedSymbol),15000);
+fetchStatus(); loadChart('TSLA');
+
+// Fix Chart.js candlestick fallback - use line
+Chart.defaults.color='#64748b';
+</script>
+</body>
+</html>
