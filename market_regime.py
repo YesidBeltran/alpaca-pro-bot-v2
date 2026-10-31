@@ -1,10 +1,5 @@
 """
 Detector de Régimen de Mercado (Macro Filter)
-Analiza el comportamiento de SPY y QQQ para determinar el contexto general:
-- BULL_TREND: Mercado favorable para compras.
-- BEAR_TREND: Mercado débil; evitar compras o priorizar coberturas.
-- CHOPPY_RANGE: Mercado lateral sin dirección; apagar estrategias tendenciales.
-- HIGH_VOLATILITY: Riesgo extremo; reducir tamaño o permanecer en liquidez.
 """
 from dataclasses import dataclass
 from alpaca.data.historical import StockHistoricalDataClient
