@@ -1,7 +1,5 @@
 """
 Motor de Aprendizaje y Memoria Histórica (Learning Engine)
-Registra el contexto completo de cada trade y ajusta dinámicamente los pesos
-de confianza de cada estrategia según su desempeño en cada régimen de mercado.
 """
 import sqlite3
 from datetime import datetime
@@ -135,12 +133,11 @@ class LearningEngine:
                 gross_loss = abs(df[df["pnl"] < 0]["pnl"].sum())
                 profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else (2.0 if gross_profit > 0 else 1.0)
 
-                # Regla de auto-aprendizaje
                 if total >= 5:
                     if win_rate < 0.40 or profit_factor < 0.8:
-                        multiplier = 0.0  # Deshabilitar si pierde consistentemente
+                        multiplier = 0.0
                     elif win_rate >= 0.65 and profit_factor >= 1.5:
-                        multiplier = 1.3  # Premiar estrategia con mayor tamaño
+                        multiplier = 1.3
                     else:
                         multiplier = 1.0
                 else:
