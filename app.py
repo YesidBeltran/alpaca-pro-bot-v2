@@ -385,6 +385,7 @@ class TradingBrain:
 
             regime = self.regime_detector.evaluate_regime()
 
+            # Posiciones reales (se publican de inmediato para que el dashboard las vea sin demora)
             pos_list = []
             try:
                 positions = self.trading_client.get_all_positions()
@@ -399,6 +400,8 @@ class TradingBrain:
                         "pl_pct": round(pl_pct, 2),
                         "nom": f"${float(p.market_value):.0f}",
                     })
+                with STATE_LOCK:
+                    BOT_STATE["positions"] = pos_list
             except Exception as e:
                 log_msg(f"Pos error: {e}")
 
@@ -427,7 +430,6 @@ class TradingBrain:
             learn_summary = self.learning.get_summary_stats()
 
             with STATE_LOCK:
-                BOT_STATE["positions"] = pos_list
                 BOT_STATE["watchlist"] = watchlist
                 BOT_STATE["last_scan"] = get_ny_time_str()
                 BOT_STATE["market_open"] = is_market_open_now(self.trading_client)
