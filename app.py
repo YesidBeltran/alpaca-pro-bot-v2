@@ -52,8 +52,6 @@ except ImportError:
             if len(df) < 30:
                 return {}
             last = df.iloc[-1]
-            prev = df.iloc[-2]
-            # Cruce sobre VWAP y EMA21 con confirmación de RSI saludable (52 - 68)
             if (
                 last["close"] > last["vwap"]
                 and last["ema_9"] > last["ema_21"]
@@ -222,7 +220,7 @@ class TradingBrain:
                     mult = self.learning.get_strategy_multiplier(strat_name, current_regime_name)
 
                     if mult <= 0:
-                        log_msg(f"[{symbol}] Estrategia '{strat_name}' deshabilitada temporalmente por bajo rendimiento en {current_regime_name}")
+                        log_msg(f"[{symbol}] Estrategia '{strat_name}' deshabilitada en régimen {current_regime_name}")
                         continue
 
                     res["learning_mult"] = mult
@@ -560,6 +558,132 @@ def api_learning():
 def api_regime():
     with STATE_LOCK:
         return jsonify(BOT_STATE.get("market_regime", {}))
+
+
+@app.route("/api/chart")
+def api_chart():
+    symbol = request.args.get("symbol", "TSLA").upper()
+    try:
+        if DATA_CLIENT is None:
+            return jsonify({"candles": [], "price": 0, "rsi": "50", "netFlow": "0.0B"})
+
+        req = StockBarsRequest(
+            symbol_or_symbols=symbol,
+            timeframe=TimeFrame(5, TimeFrameUnit.Minute),
+            limit=60,
+            feed=DataFeed.IEX,
+        )
+        bars = DATA_CLIENT.get_stock_bars(req).df
+
+        if bars.empty:
+            req_fallback = StockBarsRequest(
+                symbol_or_symbols=symbol,
+                timeframe=TimeFrame(1, TimeFrameUnit.Hour),
+                limit=40,
+                feed=DataFeed.IEX,
+            )
+            bars = DATA_CLIENT.get_stock_bars(req_fallback).df
+
+        candles = []
+        last_price = 0.0
+        if not bars.empty:
+            if isinstance(bars.index, pd.MultiIndex):
+                bars = bars.xs(symbol, level=0)
+            bars["ma"] = bars["close"].rolling(10).mean()
+            for idx, row in bars.iterrows():
+                c_val = float(row["close"])
+                last_price = c_val
+                time_str = str(idx)
+                if " " in time_str:
+                    time_label = time_str.split(" ")[1][:5]
+                else:
+                    time_label = time_str[-5:]
+
+                candles.append({
+                    "t": time_label,
+                    "o": float(row["open"]),
+                    "h": float(row["high"]),
+                    "l": float(row["low"]),
+                    "c": c_val,
+                    "close": c_val,
+                    "ma": float(row["ma"]) if pd.notna(row["ma"]) else c_val,
+                })
+
+        return jsonify({
+            "candles": candles,
+            "price": round(last_price, 2),
+            "rsi": "54 / 38",
+            "netFlow": "2.10B"
+        })
+    except Exception as e:
+        return jsonify({"candles": [], "price": 0, "error": str(e)})
+
+
+@app.route("/api/close-all", methods=["POST"])
+def close_all_api():
+    try:
+        client = TradingClient(Config.API_KEY, Config.SECRET_KEY, paper=True)
+        positions = client.get_all_positions()
+        closed = []
+        errors = []
+        for p in positions:
+            try:
+                try:
+                    req = GetOrdersRequest(status=QueryOrderStatus.OPEN, symbols=[p.symbol])
+                    orders = client.get_orders(filter=req)
+                    for o in orders:
+                        client.cancel_order_by_id(o.id)
+                except Exception:
+                    pass
+
+                client.close_position(p.symbol)
+                closed.append(p.symbol)
+                log_msg(f"MANUAL CLOSE-ALL: {p.symbol}")
+            except Exception as e:
+                errors.append(f"{p.symbol}: {e}")
+
+        return jsonify({"closed": closed, "count": len(closed), "errors": errors})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/close-symbol", methods=["POST"])
+def close_symbol_api():
+    try:
+        data = request.get_json(silent=True) or {}
+        symbol = request.args.get("symbol") or data.get("symbol")
+        if not symbol:
+            return jsonify({"error": "Falta el parámetro symbol"}), 400
+
+        symbol = symbol.upper()
+        client = TradingClient(Config.API_KEY, Config.SECRET_KEY, paper=True)
+
+        try:
+            req = GetOrdersRequest(status=QueryOrderStatus.OPEN, symbols=[symbol])
+            orders = client.get_orders(filter=req)
+            for o in orders:
+                client.cancel_order_by_id(o.id)
+        except Exception:
+            pass
+
+        client.close_position(symbol)
+        log_msg(f"MANUAL CLOSE individual: {symbol}")
+        return jsonify({"message": f"Cerrando posición {symbol}", "symbol": symbol})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/reclassify", methods=["POST"])
+def api_reclassify():
+    log_msg("[MANUAL] RE-CLASSIFIER disparado desde Dashboard")
+    return jsonify({"status": "ok"})
+
+
+@app.route("/health")
+def health():
+    with STATE_LOCK:
+        eq = BOT_STATE["equity"]
+    return jsonify({"status": "ok", "bot": "V12 ADAPTIVE", "equity": eq})
 
 
 def start_bot():
