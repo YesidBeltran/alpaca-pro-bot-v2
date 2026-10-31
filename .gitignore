@@ -1,7 +1,23 @@
+# Entorno y Secretos
 .env
-__pycache__/
-*.pyc
-venv/
-logs/
+*.env
+
+# Archivos de datos locales, memoria y logs
 journal.json
-backtest_results/
+journal.json.bak
+trading_memory.db
+*.db
+*.sqlite3
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# IDEs
+.vscode/
+.idea/
