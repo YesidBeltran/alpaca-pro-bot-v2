@@ -69,7 +69,7 @@
     <div id="watchlist"></div>
     <div style="margin-top:14px" class="panel">
       <div class="panel-title">PORTFOLIO ALLOCATION</div>
-      <div class="allocation-ring"><div class="allocation-center" id="posCount">0/2</div></div>
+      <div class="allocation-ring"><div class="allocation-center" id="posCount">0/4</div></div>
       <div style="font-size:11px;line-height:1.6">
         <div>● Equity Core 30%</div>
         <div style="color:#60a5fa">● Growth Core</div>
@@ -110,7 +110,11 @@
       <div class="panel-title">ORDER BOOK • IEX DEPTH</div>
       <div class="orderbook">
         <div style="display:flex;justify-content:space-between;color:var(--dim);font-size:10px"><span>BIDS • DEPTH</span><span>ASKS • BITE</span></div>
-        <div id="orderBook"></div>
+        <div id="orderBook">
+          <div class="ob-row"><span>178.90</span><span style="color:var(--dim)">120</span><span style="color:var(--yellow)">178.95</span><span>98</span></div>
+          <div class="ob-row"><span>178.85</span><span style="color:var(--dim)">250</span><span style="color:var(--yellow)">179.00</span><span>210</span></div>
+          <div class="ob-row"><span>178.80</span><span style="color:var(--dim)">310</span><span style="color:var(--yellow)">179.05</span><span>165</span></div>
+        </div>
       </div>
     </div>
     <div class="panel" style="margin-top:10px">
@@ -144,7 +148,7 @@
     <div class="panel-title">POSICIONES REALES ALPACA • PROTECCIÓN ACTIVA</div>
     <table class="pos-table">
       <thead><tr><th>SYMBOL</th><th>QTY</th><th>ENTRY</th><th>P/L REAL</th><th>NOMINAL</th><th>ACCIÓN</th></tr></thead>
-      <tbody id="posBody"><tr><td colspan="6" style="text-align:center;color:var(--dim);padding:20px">No hay posiciones abiertas</td></tr></tbody>
+      <tbody id="posBody"><tr><td colspan="6" style="text-align:center;color:var(--dim);padding:20px">Cargando posiciones de Alpaca...</td></tr></tbody>
     </table>
     <div style="margin-top:10px;font-size:10px;color:var(--dim)"><span class="tag bgg">TRAILING STOP ATR ACTIVO</span> <span class="tag bgg">BREAKEVEN +1R</span> <span class="tag bgg">FEED IEX REAL</span></div>
   </div>
@@ -163,73 +167,98 @@
 let mainChart = null;
 let selectedSymbol = 'TSLA';
 
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
 async function fetchStatus(){
   try{
     const res = await fetch('/api/status');
     const data = await res.json();
     
-    document.getElementById('equityBadge').textContent = 'EQUITY $' + (data.equity||0).toFixed(2);
-    document.getElementById('cashBadge').textContent = 'CASH $' + (data.cash||0).toFixed(2);
-    document.getElementById('bpBadge').textContent = 'BP $' + (data.buying_power||0).toFixed(0);
-    document.getElementById('eqVal').textContent = '$' + (data.equity||0).toFixed(2);
-    document.getElementById('eqHoy').textContent = (data.today_pnl>=0?'+$':'-$') + Math.abs(data.today_pnl||0).toFixed(1) + ' • ' + (data.today_pnl_pct||0).toFixed(2) + '%';
+    setText('equityBadge', 'EQUITY $' + (data.equity||0).toFixed(2));
+    setText('cashBadge', 'CASH $' + (data.cash||0).toFixed(2));
+    setText('bpBadge', 'BP $' + (data.buying_power||0).toFixed(0));
+    setText('eqVal', '$' + (data.equity||0).toFixed(2));
     
     const isMarketOpen = data.market_open;
-    document.getElementById('marketStatus').textContent = isMarketOpen ? 'MARKET OPEN' : 'MARKET CLOSED';
-    document.getElementById('marketStatus').className = 'badge ' + (isMarketOpen ? 'green' : 'yellow');
+    const mktEl = document.getElementById('marketStatus');
+    if (mktEl) {
+      mktEl.textContent = isMarketOpen ? 'MARKET OPEN' : 'MARKET CLOSED';
+      mktEl.className = 'badge ' + (isMarketOpen ? 'green' : 'yellow');
+    }
     
     const regime = data.market_regime || {};
     const regName = regime.name || 'ANALIZANDO';
-    document.getElementById('regimeBadge').textContent = 'RÉGIMEN: ' + regName;
-    document.getElementById('macroRegimeName').textContent = regName;
+    setText('regimeBadge', 'RÉGIMEN: ' + regName);
+    setText('macroRegimeName', regName);
     
-    document.getElementById('posCount').textContent = (data.positions?.length || 0) + '/2';
-    document.getElementById('lastScan').textContent = data.last_scan || '--';
-    document.getElementById('todayPnl').textContent = 'Hoy: ' + (data.today_pnl>=0?'+':'') + '$' + (data.today_pnl||0).toFixed(1);
-    document.getElementById('nyTime').textContent = data.last_scan ? data.last_scan.split(' ')[1] : '--';
+    const posList = data.positions || [];
+    setText('posCount', posList.length + '/4');
+    setText('lastScan', data.last_scan || '--');
+    setText('todayPnl', 'Hoy: ' + ((data.today_pnl||0)>=0?'+':'') + '$' + (data.today_pnl||0).toFixed(1));
+    setText('nyTime', data.last_scan ? data.last_scan.split(' ')[1] : '--');
 
+    // Watchlist
     const wl = document.getElementById('watchlist');
-    wl.innerHTML = '';
-    (data.watchlist || []).forEach(w => {
-      const div = document.createElement('div');
-      div.className = 'watch-item ' + (w.symbol === selectedSymbol ? 'active' : '');
-      div.onclick = () => { selectedSymbol = w.symbol; loadChart(w.symbol); fetchStatus(); };
-      div.innerHTML = `
-        <div>
-          <div class="sym">${w.symbol}</div>
-          <div class="rsi-bar"><div class="rsi-fill" style="width:${w.rsi||50}%"></div></div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:11px">$${(w.price||0).toFixed(2)}</div>
-          <div class="pct ${w.change>=0?'pos':'neg'}">${w.change>=0?'+':''}${(w.change||0).toFixed(2)}%</div>
-        </div>
-      `;
-      wl.appendChild(div);
-    });
-
-    const tbody = document.getElementById('posBody');
-    if(!data.positions || data.positions.length === 0){
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:20px">No hay posiciones abiertas</td></tr>';
-    } else {
-      tbody.innerHTML = data.positions.map(p => `
-        <tr>
-          <td><strong>${p.symbol}</strong></td>
-          <td>${p.qty}</td>
-          <td>$${p.entry}</td>
-          <td class="pnl ${p.pl>=0?'pos':'neg'}">${p.pl>=0?'+':''}$${p.pl} (${p.pl_pct}%)</td>
-          <td>${p.nom||'-'}</td>
-          <td><button onclick="closeSymbol('${p.symbol}')" style="background:#ff3b3b;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:10px;cursor:pointer;font-weight:700">CERRAR</button></td>
-        </tr>
-      `).join('');
+    if (wl) {
+      wl.innerHTML = '';
+      (data.watchlist || []).forEach(w => {
+        const div = document.createElement('div');
+        div.className = 'watch-item ' + (w.symbol === selectedSymbol ? 'active' : '');
+        div.onclick = () => { selectedSymbol = w.symbol; loadChart(w.symbol); fetchStatus(); };
+        div.innerHTML = `
+          <div>
+            <div class="sym">${w.symbol}</div>
+            <div class="rsi-bar"><div class="rsi-fill" style="width:${w.rsi||50}%"></div></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px">$${(w.price||0).toFixed(2)}</div>
+            <div class="pct ${w.change>=0?'pos':'neg'}">${w.change>=0?'+':''}${(w.change||0).toFixed(2)}%</div>
+          </div>
+        `;
+        wl.appendChild(div);
+      });
     }
 
-    document.getElementById('logFeed').innerHTML = (data.logs || []).slice(-15).reverse().map(l => `<div>[${l.time}] ${l.msg}</div>`).join('');
+    // Posiciones Reales de Alpaca
+    const tbody = document.getElementById('posBody');
+    if (tbody) {
+      if (posList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:20px">No hay posiciones abiertas</td></tr>';
+      } else {
+        tbody.innerHTML = posList.map(p => `
+          <tr>
+            <td><strong>${p.symbol}</strong></td>
+            <td>${p.qty}</td>
+            <td>$${p.entry}</td>
+            <td class="pnl ${p.pl>=0?'pos':'neg'}">${p.pl>=0?'+':''}$${p.pl} (${p.pl_pct}%)</td>
+            <td>${p.nom||'-'}</td>
+            <td><button onclick="closeSymbol('${p.symbol}')" style="background:#ff3b3b;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:10px;cursor:pointer;font-weight:700">CERRAR</button></td>
+          </tr>
+        `).join('');
+      }
+    }
 
+    // Logs
+    const logEl = document.getElementById('logFeed');
+    if (logEl) {
+      const logs = data.logs || [];
+      if (logs.length > 0) {
+        logEl.innerHTML = logs.slice(-15).reverse().map(l => `<div>[${l.time}] ${l.msg}</div>`).join('');
+      }
+    }
+
+    // Resumen de Aprendizaje
     const ls = data.learning_summary || {};
-    document.getElementById('learnTrades').textContent = ls.total_closed_trades || 0;
-    document.getElementById('learnWR').textContent = (ls.overall_win_rate || 0) + '%';
-    document.getElementById('learnPnL').textContent = '$' + (ls.total_pnl || 0).toFixed(2);
-    document.getElementById('learnPnL').style.color = (ls.total_pnl || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+    setText('learnTrades', ls.total_closed_trades || 0);
+    setText('learnWR', (ls.overall_win_rate || 0) + '%');
+    setText('learnPnL', '$' + (ls.total_pnl || 0).toFixed(2));
+    const pnlEl = document.getElementById('learnPnL');
+    if (pnlEl) {
+      pnlEl.style.color = (ls.total_pnl || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+    }
 
   }catch(e){ console.error("Error en fetchStatus:", e); }
 }
@@ -242,10 +271,15 @@ async function loadChart(sym){
     const candles = d.candles || [];
     
     const curPrice = d.price || (candles.length > 0 ? candles[candles.length - 1].close : 0);
-    document.getElementById('alphaSymbol').innerHTML = `ALPHA • ${selectedSymbol} <span style="color:#fff">$${curPrice ? curPrice.toFixed(2) : '--'}</span>`;
-    document.getElementById('rsiVals').textContent = 'RSI: ' + (d.rsi || '50');
+    const alphaEl = document.getElementById('alphaSymbol');
+    if (alphaEl) {
+      alphaEl.innerHTML = `ALPHA • ${selectedSymbol} <span style="color:#fff">$${curPrice ? curPrice.toFixed(2) : '--'}</span>`;
+    }
+    setText('rsiVals', 'RSI: ' + (d.rsi || '50'));
 
-    const ctx = document.getElementById('mainChart').getContext('2d');
+    const canvas = document.getElementById('mainChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     if(mainChart) mainChart.destroy();
 
     const labels = candles.map(c => c.t || '');
@@ -300,7 +334,7 @@ async function loadChart(sym){
           }
         },
         scales: {
-          x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#64748b', maxTicksLimit: 8 } },
+          x: { grid: { color: 'rgba(255,255,200,0.03)' }, ticks: { color: '#64748b', maxTicksLimit: 8 } },
           y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
         }
       }
@@ -313,7 +347,7 @@ async function loadChart(sym){
 
 function reclassify(){
   fetch('/api/reclassify', {method: 'POST'}).then(() => {
-    alert('Re-Classifier ejecutado correctamente.');
+    alert('Re-Classifier ejecutado.');
     fetchStatus();
   });
 }
