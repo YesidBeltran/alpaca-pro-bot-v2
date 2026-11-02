@@ -89,13 +89,14 @@ def should_close_eod():
         ny_tz = pytz.timezone('America/New_York')
         now_ny = datetime.now(ny_tz)
         total_min = now_ny.hour * 60 + now_ny.minute
-        return total_min >= 944
+        # Margen ampliado de cierre (15:40 a 15:59 NY) para asegurar la ejecución del cierre EOD
+        return 940 <= total_min <= 959
     except:
         try:
             from datetime import datetime
             utc_now = datetime.utcnow()
             total_min = utc_now.hour * 60 + utc_now.minute
-            return total_min >= 1185
+            return total_min >= 1180
         except:
             return False
 
@@ -208,7 +209,6 @@ class TradingBrain:
                         pass
                 time.sleep(1)
             except Exception as e:
-                # Fallback sin filtro
                 try:
                     from alpaca.trading.requests import GetOrdersRequest
                     from alpaca.trading.enums import QueryOrderStatus
@@ -267,18 +267,14 @@ class TradingBrain:
             return False
 
     def manage_positions(self):
-        # V11.8: Si hay posiciones con perdida >1.2%, intenta cerrar aunque mercado este por abrir
-        # Pero si mercado realmente cerrado (noche), espera
         try:
             import pytz
             from datetime import datetime
             ny_tz = pytz.timezone('America/New_York')
             now_ny = datetime.now(ny_tz)
-            # Si es de noche (despues de 16:00 y antes de 9:30), no intentes cerrar (Alpaca rechaza)
             total_min = now_ny.hour*60 + now_ny.minute
-            is_night = total_min > 960 or total_min < 570  # despues de 16:00 o antes de 9:30
+            is_night = total_min > 960 or total_min < 570
             if is_night:
-                # De noche no intentes cerrar, Alpaca rechaza
                 return
         except:
             pass
@@ -380,21 +376,17 @@ class TradingBrain:
             BOT_STATE["last_scan"]=get_ny_time_str()
             BOT_STATE["orderbook"]=[{"bid":round(178.9+random.uniform(-1,1),2),"size":random.randint(80,350),"ask":round(178.95+random.uniform(-1,1),2),"askSize":random.randint(80,350)} for _ in range(4)]
             BOT_STATE["market_open"]=is_market_open_now()
-            # V11.7: Calculo REAL de performance metrics desde equity
             try:
                 equity_now = BOT_STATE["equity"]
                 initial = 100000.0
-                # Return YTD real
                 return_ytd = (equity_now / initial - 1) * 100
                 BOT_STATE["return_ytd"] = round(return_ytd, 2)
                 BOT_STATE["ytd"] = f"{return_ytd:+.2f}%"
-                # Today PnL
                 day_start = BOT_STATE.get("day_start_equity", initial)
                 today_pnl = equity_now - day_start
                 today_pnl_pct = (today_pnl / day_start * 100) if day_start else 0
                 BOT_STATE["today_pnl"] = round(today_pnl, 2)
                 BOT_STATE["today_pnl_pct"] = round(today_pnl_pct, 2)
-                # Max Drawdown y Sharpe - usa variable global no en BOT_STATE
                 EQUITY_HISTORY.append(equity_now)
                 eq_hist = list(EQUITY_HISTORY)
                 if len(eq_hist) > 1:
@@ -402,7 +394,6 @@ class TradingBrain:
                     trough = min(eq_hist)
                     max_dd = (trough - peak) / peak * 100 if peak else 0
                     BOT_STATE["max_drawdown"] = round(max_dd, 2)
-                    # Volatility: std de retornos
                     returns = [(eq_hist[i]-eq_hist[i-1])/eq_hist[i-1] for i in range(1,len(eq_hist)) if eq_hist[i-1]!=0]
                     if returns:
                         import math
@@ -410,14 +401,11 @@ class TradingBrain:
                         var = sum((r-mean_ret)**2 for r in returns)/len(returns) if len(returns)>1 else 0
                         vol = math.sqrt(var) * math.sqrt(252) * 100
                         BOT_STATE["volatility"] = round(vol, 2)
-                        # Sharpe simplificado
                         sharpe = (mean_ret*252) / (math.sqrt(var)*math.sqrt(252)) if var>0 else 0
                         BOT_STATE["sharpe"] = round(sharpe, 2)
-                    # Momentum RSI promedio del watchlist
                     if watchlist:
                         avg_rsi = sum(w.get("rsi",50) for w in watchlist)/len(watchlist)
                         BOT_STATE["momentum_rsi"] = round(avg_rsi, 0)
-                    # Confidence promedio
                     confs = [BOT_STATE.get(f"last_{sym}_conf",0) for sym in Config.SYMBOLS]
                     confs = [c for c in confs if c>0]
                     if confs:
@@ -442,7 +430,7 @@ class TradingBrain:
         except Exception as e:
             log_msg(f"Backtest skip: {e}")
         last_trade_time = None
-        trade_validation_cooldown = 30 * 60  # V11.8: 30 min entre trades para validar bien
+        trade_validation_cooldown = 30 * 60
         
         while True:
             try:
@@ -453,19 +441,15 @@ class TradingBrain:
                 pos_syms=[p.symbol for p in positions]
                 now_str = get_ny_time_str()
                 
+                # Verificación de Cierre EOD y horario de mercado
                 if not is_market_open_now():
                     if should_close_eod() and positions:
-                        import pytz
-                        from datetime import datetime
-                        ny_tz = pytz.timezone('America/New_York')
-                        now_ny = datetime.now(ny_tz)
-                        if 15*60+44 <= now_ny.hour*60+now_ny.minute <= 15*60+46:
-                            log_msg(f"CIERRE EOD {now_str} - Cerrando {len(positions)} posiciones")
-                            for p in positions:
-                                self.close_position(p.symbol, f"CIERRE EOD 15:44 NY V11.8")
-                            time.sleep(60*5)
-                            continue
-                    log_msg(f"--- SCAN {now_str} | Mercado CERRADO (solo 9:30-15:44 NY) | 0 operaciones | Equity ${equity:.2f} | Pos: {pos_syms} ---")
+                        log_msg(f"CIERRE EOD {now_str} - Cerrando {len(positions)} posiciones abiertas automáticamente")
+                        for p in positions:
+                            self.close_position(p.symbol, f"CIERRE EOD Automático V11.8")
+                        time.sleep(60*5)
+                        continue
+                    log_msg(f"--- SCAN {now_str} | Mercado CERRADO | 0 operaciones | Equity ${equity:.2f} | Pos: {pos_syms} ---")
                     BOT_STATE["market_open"] = False
                     time.sleep(60*10)
                     continue
@@ -473,13 +457,12 @@ class TradingBrain:
                 BOT_STATE["market_open"] = True
                 log_msg(f"--- SCAN {now_str} | Equity ${equity:.2f} | Pos: {pos_syms} | DayStart ${BOT_STATE.get('day_start_equity',0):.2f} ---")
                 
-                # V11.8: Al abrir mercado, si hay posiciones viejas con perdida >1%, cierralas TODAS primero
                 try:
                     import pytz
                     from datetime import datetime
                     ny_tz = pytz.timezone('America/New_York')
                     now_ny = datetime.now(ny_tz)
-                    is_opening = now_ny.hour == 9 and now_ny.minute <= 35  # primeros 5 min de apertura
+                    is_opening = now_ny.hour == 9 and now_ny.minute <= 35
                     if is_opening and positions:
                         has_loser = any(float(p.unrealized_plpc)*100 <= -1.0 for p in positions)
                         if has_loser:
